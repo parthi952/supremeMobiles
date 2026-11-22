@@ -69,6 +69,14 @@ def register():
             )
             db.session.add(item)
             db.session.commit()
+
+            # Automatically save/append to plain text file
+            try:
+                with open("registrations.txt", "a", encoding="utf-8") as f:
+                    f.write(f"App: {app_no} | Name: {name} | Mobile: {mobile} | Network: {network} | Location: {location} | Lat: {latitude} | Long: {longitude} | Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            except Exception:
+                pass
+
             return render_template("success.html", item=item)
         return redirect(url_for("register"))
     return render_template("register.html")
@@ -131,6 +139,16 @@ def export_csv():
                          item.created_at.strftime("%Y-%m-%d %H:%M"), "Yes" if item.gift_collected else "No"])
     return Response(output.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=supreme_registrations.csv"})
+
+@app.route("/admin/export/txt")
+@admin_required
+def export_txt():
+    output = io.StringIO()
+    output.write("=== SUPREME MOBILES REGISTRATIONS ===\n\n")
+    for item in Registration.query.order_by(Registration.created_at.desc()).all():
+        output.write(f"App: {item.application_no} | Name: {item.name} | Mobile: {item.mobile} | Network: {item.network} | Location: {item.location or 'N/A'} | Lat: {item.latitude or 'N/A'} | Long: {item.longitude or 'N/A'} | Date: {item.created_at.strftime('%Y-%m-%d %H:%M')}\n")
+    return Response(output.getvalue(), mimetype="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=registrations.txt"})
 
 with app.app_context():
     db.create_all()
