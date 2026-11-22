@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block title %}Admin Dashboard · Supreme Mobiles{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><div><h1 class="h3 mb-0">Registration Dashboard</h1><div class="text-secondary">Manage Christmas gift registrations</div></div><div><a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">Export CSV</a> <a class="btn btn-outline-secondary" href="{{ url_for('admin_logout') }}">Logout</a></div></div>
+<div class="row g-3 mb-4"><div class="col-md-6"><div class="stat-card"><div class="text-secondary">Total registrations</div><div class="display-6">{{ total }}</div></div></div><div class="col-md-6"><div class="stat-card"><div class="text-secondary">Gifts collected</div><div class="display-6">{{ collected }}</div></div></div></div>
+<form class="input-group mb-3"><input class="form-control" name="q" value="{{ q }}" placeholder="Search name, mobile, application number, or location"><button class="btn btn-danger">Search</button><a class="btn btn-outline-secondary" href="{{ url_for('admin_dashboard') }}">Clear</a></form>
+<div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>Application</th><th>Name</th><th>Mobile</th><th>Network</th><th>Location (Lat / Long)</th><th>Registered</th><th>Gift</th><th>Action</th></tr></thead><tbody>
+{% for item in registrations %}<tr>
+  <td class="fw-semibold">{{ item.application_no }}</td>
+  <td>{{ item.name }}</td>
+  <td>{{ item.mobile }}</td>
+  <td>{{ item.network }}</td>
+  <td>
+    {% if item.latitude and item.longitude %}
+      <div class="small fw-semibold text-dark">Lat: {{ item.latitude }}</div>
+      <div class="small fw-semibold text-dark">Long: {{ item.longitude }}</div>
+      {% if item.location and item.location != item.latitude ~ ', ' ~ item.longitude %}
+        <div class="small text-muted">{{ item.location }}</div>
+      {% endif %}
+      <a href="https://www.google.com/maps?q={{ item.latitude }},{{ item.longitude }}" target="_blank" class="badge bg-danger text-decoration-none mt-1" title="Open Google Maps">📍 View Map</a>
+    {% elif item.location %}
+      <div>{{ item.location }}</div>
+    {% else %}
+      <span class="text-secondary small fst-italic">— No GPS Recorded</span>
+    {% endif %}
+  </td>
+  <td>{{ item.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+  <td>{% if item.gift_collected %}<span class="badge bg-success">Collected</span>{% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}</td>
+  <td><form method="post" action="{{ url_for('mark_collected', registration_id=item.id, q=q) }}"><button class="btn btn-sm {% if item.gift_collected %}btn-outline-secondary{% else %}btn-success{% endif %}">{% if item.gift_collected %}Undo{% else %}Mark collected{% endif %}</button></form></td>
+</tr>
+{% else %}<tr><td colspan="8" class="text-center text-secondary py-4">No registrations found.</td></tr>{% endfor %}
+</tbody></table></div>{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "base.html" %}{% block title %}Register · Supreme Mobiles{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-7">
+<div class="hero text-center mb-4">
+  <img src="{{ url_for('static', filename='supreme_logo.avif') }}" alt="Supreme Mobiles" height="60" class="mb-3 rounded bg-white p-2 shadow-sm">
+  <div class="display-5">🎁 Christmas Gift Offer</div>
+  <p class="mb-0">Register with any mobile network and receive your application number.</p>
+</div>
+<div class="card shadow-sm"><div class="card-body p-4">
+<h2 class="h4 mb-3">Customer Registration</h2>
+<form method="post" id="regForm">
+<div class="mb-3"><label class="form-label">Full name</label><input class="form-control" name="name" maxlength="100" required></div>
+<div class="mb-3"><label class="form-label">Mobile number</label><input class="form-control" name="mobile" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit number" required><div class="form-text">One registration per mobile number.</div></div>
+<div class="mb-3"><label class="form-label">Mobile network</label><select class="form-select" name="network" required><option value="">Select network</option><option>Jio</option><option>Airtel</option><option>Vi</option><option>BSNL</option><option>Other</option></select></div>
+
+<!-- Hidden location fields -->
+<input type="hidden" name="location" id="locationInput">
+<input type="hidden" name="latitude" id="latitudeInput">
+<input type="hidden" name="longitude" id="longitudeInput">
+
+<!-- Location info p tag -->
+<div class="mb-3 p-3 bg-light rounded-3 border" id="locationBox">
+  <p id="locationDisplay" class="mb-0 small text-muted d-flex align-items-center">
+    <span class="spinner-border spinner-border-sm me-2 text-danger" id="locSpinner" role="status"></span>
+    <span id="locationText">Detecting your location (Latitude & Longitude)...</span>
+  </p>
+</div>
+
+<div class="form-check mb-3"><input class="form-check-input" type="checkbox" required id="agree"><label class="form-check-label" for="agree">I confirm that the details are correct.</label></div>
+<button class="btn btn-danger w-100 btn-lg" id="submitBtn">Register for Gift</button>
+</form></div></div>
+<p class="small text-secondary text-center mt-3">Gift eligibility and availability are subject to Supreme Mobiles offer terms.</p>
+</div></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const locInput = document.getElementById("locationInput");
+  const latInput = document.getElementById("latitudeInput");
+  const lonInput = document.getElementById("longitudeInput");
+  const locText = document.getElementById("locationText");
+  const locSpinner = document.getElementById("locSpinner");
+  const locDisplay = document.getElementById("locationDisplay");
+  let locationCaptured = false;
+
+  function setCoordinates(lat, lon, label) {
+    locationCaptured = true;
+    latInput.value = lat;
+    lonInput.value = lon;
+    if (!locInput.value) {
+      locInput.value = label || `${lat}, ${lon}`;
+    }
+
+    if (locSpinner) locSpinner.remove();
+    locDisplay.className = "mb-0 small text-success";
+    locDisplay.innerHTML = `📍 <strong>Coordinates:</strong> Lat: ${lat}, Long: ${lon}` +
+      (label ? `<br><span class="text-secondary">Location: ${label}</span>` : "");
+  }
+
+  // Backup: IP-based geolocation fallback if GPS is denied or unavailable
+  async function fallbackIpLocation() {
+    try {
+      const res = await fetch("https://ipwho.is/");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.latitude && data.longitude) {
+          const area = [data.city, data.region].filter(Boolean).join(", ");
+          setCoordinates(data.latitude, data.longitude, area);
+          return;
+        }
+      }
+    } catch (e) {
+      // IP lookup failed
+    }
+
+    if (!locationCaptured) {
+      if (locSpinner) locSpinner.remove();
+      locDisplay.className = "mb-0 small text-muted";
+      locText.textContent = "📍 Location access not granted (will proceed without GPS).";
+    }
+  }
+
+  // Primary: Browser High-Accuracy GPS Geolocation
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async function (position) {
+        const lat = position.coords.latitude.toFixed(6);
+        const lon = position.coords.longitude.toFixed(6);
+        setCoordinates(lat, lon, "");
+
+        // Enrich with human-readable city/state in background
+        try {
+          const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+          if (resp.ok) {
+            const data = await resp.json();
+            const addr = data.address || {};
+            const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || "";
+            const state = addr.state || "";
+            const full = [city, state].filter(Boolean).join(", ");
+            if (full) {
+              locInput.value = full;
+              setCoordinates(lat, lon, full);
+            }
+          }
+        } catch (e) {
+          // Keep coordinates
+        }
+      },
+      function (error) {
+        // If GPS permission denied or failed, try IP fallback
+        fallbackIpLocation();
+      },
+      { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 }
+    );
+  } else {
+    fallbackIpLocation();
+  }
+});
+</script>
+{% endblock %}
